@@ -12,12 +12,12 @@ before_install:
 
 install:
   - tar -xzf /tmp/hugo.tar.gz -C "${HUGO_PATH}/"
+  - pip install --user awscli
 
 script:
   - hugo
 
 after_script:
-  - pip install --user awscli
   # deploy pull requests to staging
   - if [[ $TRAVIS_PULL_REQUEST != false && $TRAVIS_BRANCH = master ]]; then aws s3 sync public/ "s3://${STG_BUCKET}/" --delete; fi
 
