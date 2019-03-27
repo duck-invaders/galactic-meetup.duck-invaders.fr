@@ -1,27 +1,30 @@
 language: generic
 
 env:
-    global:
-        - HUGO_VERSION=0.54.0
-        - HUGO_PATH=$HOME/bin
-        - PRD_BUCKET=galactic-meetup.duck-invaders.fr
-        - STG_BUCKET=galactic-meetup.staging.duck-invaders.fr
+  global:
+    - HUGO_VERSION=0.54.0
+    - HUGO_PATH=$HOME/bin
+    - PRD_BUCKET=galactic-meetup.duck-invaders.fr
+    - STG_BUCKET=galactic-meetup.staging.duck-invaders.fr
 
 before_install:
-    - wget "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_Linux-64bit.tar.gz" -O /tmp/hugo.tar.gz
+  - wget "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_Linux-64bit.tar.gz" -O /tmp/hugo.tar.gz
 
 install:
-    - tar -xzf /tmp/hugo.tar.gz -C "${HUGO_PATH}/"
+  - tar -xzf /tmp/hugo.tar.gz -C "${HUGO_PATH}/"
 
 script:
-    - hugo
+  - hugo
 
-before_deploy:
-    - pip install --user awscli
+after_script:
+  - pip install --user awscli
+  # deploy pull requests to staging
+  - if [[ $TRAVIS_PULL_REQUEST != false && $TRAVIS_BRANCH = master ]]; then aws s3 sync public/ "s3://${STG_BUCKET}/" --delete; fi
 
 deploy:
-    provider: script
-    skip_cleanup: true
-    script: aws s3 sync public/ "s3://${PRD_BUCKET}/" --delete
-    on:
-        branch: master
+  # deploy master to prod
+  provider: script
+  skip_cleanup: true
+  script: aws s3 sync public/ "s3://${PRD_BUCKET}/" --delete
+  on:
+    branch: master
