@@ -4,27 +4,40 @@ env:
   global:
     - HUGO_VERSION=0.54.0
     - HUGO_PATH=$HOME/bin
+
     - PRD_BUCKET=galactic-meetup.duck-invaders.fr
     - STG_BUCKET=galactic-meetup.staging.duck-invaders.fr
+
+    - PRD_CLOUDFRONT_ID=E3RC7LKJ5LAN7F
+    - STG_CLOUDFRONT_ID=EG04QZBND6NP5
 
 before_install:
   - wget "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_Linux-64bit.tar.gz" -O /tmp/hugo.tar.gz
 
 install:
   - tar -xzf /tmp/hugo.tar.gz -C "${HUGO_PATH}/"
-  - pip install --user awscli
 
 script:
   - hugo
 
-after_script:
-  # deploy pull requests to staging
-  - if [[ $TRAVIS_PULL_REQUEST != false && $TRAVIS_BRANCH = master ]]; then aws s3 sync public/ "s3://${STG_BUCKET}/" --delete; fi
+after_success:
+  - |
+    if [[ $TRAVIS_BRANCH = master ]]
+    then
+      pip install --user awscli
+      aws configure set preview.cloudfront true
 
-deploy:
-  # deploy master to prod
-  provider: script
-  skip_cleanup: true
-  script: aws s3 sync public/ "s3://${PRD_BUCKET}/" --delete
-  on:
-    branch: master
+      if [[ $TRAVIS_PULL_REQUEST = false ]]
+      then
+        echo "deploy master to prod"
+        CLOUDFRONT_ID=$PRD_CLOUDFRONT_ID
+        BUCKET=$PRD_BUCKET
+      else
+        echo "deploy pull request to staging"
+        CLOUDFRONT_ID=$STG_CLOUDFRONT_ID
+        BUCKET=$STG_BUCKET
+      fi
+
+      aws s3 sync public/ "s3://${BUCKET}/" --delete
+      aws cloudfront create-invalidation --distribution-id "${CLOUDFRONT_ID}" --paths "/*"
+    fi
